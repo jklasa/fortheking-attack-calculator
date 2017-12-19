@@ -13,21 +13,63 @@ ForTheKing Calculator
 {{ super() }}
 <script>
 var attack_count = 0;
-var use_threshold = false;
 var attacks = [];
+var threshold = 0;
+
+function factorial(num) {
+    if (num === 0 || num === 1)
+        return 1;
+    for (var i = num - 1; i >= 1; i--) {
+        num *= i;
+    }
+    return num;
+}
+
+function bin(n, p, k) {
+    var comb = factorial(n) / factorial(k) / factorial(n - k);
+    var p_success = Math.pow(p, k);
+    var p_failure = Math.pow(1 - p, n - k);
+
+    return comb * p_success * p_failure;
+}
+
+function setThreshold(i) {
+    var total_slots = attacks[i]['total_slots'];
+    var slot_percent = attacks[i]['slot_percent'];
+    var total_damage = attacks[i]['total_damage'];
+
+    attacks[i]['threshold_percent'] = 0;
+    for (var slot = 0; slot <= total_slots; slot++) {
+        var bin_prob = bin(total_slots, slot_percent / 100, slot);
+        var slot_dmg = total_damage * slot / total_slots;
+
+        console.log(slot_dmg);
+        if (slot_dmg >= threshold) {
+            attacks[i]['threshold_percent'] += bin_prob;
+        }
+    }
+
+    attacks[i]['threshold_percent'] *= 100;
+}
+
+var threshold_form = document.getElementById('threshold-form');
+$('#set-threshold').click(function() {
+    if (threshold_form.checkValidity() === false) {
+        threshold_form.classList.add('was-validated');
+        return;
+    }
+
+    threshold_form.classList.remove('was-validated');
+    threshold = $('#damage-threshold').val();
+
+    for (var i = 0; i < attack_count; i++) {
+        setThreshold(i);
+
+        $('#attacks tr:nth-child(' + (i + 1) + ') td:last-child').text(attacks[i]['threshold_percent'].toFixed(2));
+    }
+});
 
 var attack_form = document.getElementById('attack-form');
-
-$('#max-select').click(function() {
-    $('#damage-amount').prop('disabled', true).prop('required', false);
-    use_threshold = false;
-});
-
-$('#amount-select').click(function() {
-    $('#damage-amount').prop('disabled', false).prop('required', true);
-    use_threshold = true;
-});
-
 $('#add-attack').click(function() {
     $('#no-attacks-feedback').hide();
 
@@ -37,7 +79,6 @@ $('#add-attack').click(function() {
     }
        
     attack_form.classList.remove('was-validated');
- 
     var name = $('#name').val();
     var total_damage = parseInt($('#damage').val());
     var total_slots = parseInt($('#slots').val());
@@ -50,102 +91,44 @@ $('#add-attack').click(function() {
 
     attacks.push({
         "name": name,
-        "damage": total_damage,
-        "slots": total_slots,
-        "percent": slot_percent,
-        "pass_percent": 0,
-        "avg": damage * percent
+        "total_damage": total_damage,
+        "avg_damage": 0,
+        "stddev_damage": 0,
+        "total_slots": total_slots,
+        "slot_percent": slot_percent,
+        "threshold_percent": 0
     });
 
-    for (var slot = 0; slot <= total_slots; slot++) {
-        var bin_prob = bin(total_slots, slot_percent / 100, slot);
-        var slot_dmg = total_damage * slot / total_slots * bin_prob;
-    }
+    setThreshold(attack_count);
 
-    var avg_damage = total_damage * slot_percent / 100;
+    attacks[attack_count]['avg_damage'] = total_damage * slot_percent / 100;
     var bin_stddev = Math.sqrt(total_slots * slot_percent / 100 * (1 - slot_percent / 100));
-    var stddev_damage = total_damage * bin_stddev / total_slots;
+    attacks[attack_count]['stddev_damage'] = total_damage * bin_stddev / total_slots;
 
     var attack = "<tr><td>" + name + 
                  "</td><td>" + total_damage + 
-                 "</td><td>" + avg_damage +
-                 "</td><td>" + stddev_damage +
+                 "</td><td>" + attacks[attack_count]['avg_damage'].toFixed(2) +
+                 "</td><td>" + attacks[attack_count]['stddev_damage'].toFixed(2) +
                  "</td><td>" + total_slots + 
-                 "</td><td>" + slot_percent + 
-                 "%</td></tr>";
+                 "</td><td>" + slot_percent +
+                 "%</td><td>" + attacks[attack_count]['threshold_percent'].toFixed(2) + 
+                 "</td></tr>";
     $('#attacks').append(attack);
 
-    attack_count++;
-});
-
-function factorial(num) {
-    if (num === 0 || num === 1)
-        return 1;
-    for (var i = num - 1; i >= 1; i--) {
-        num *= i;
-    }
-    return num;
-}
-
-function bin(n, p, k) {
-    var comb = factorial(factorial(n) / factorial(k) / factorial(n - k));
-    var p_success = Math.pow(p, k);
-    var p_failure = Math.pow(1 - p, n - k);
-
-    return comb * p_success * p_failure;
-}
-
-var damage_form = document.getElementById('damage-form');
-$('#highest-result').hide();
-$('#threshold-result-found').hide();
-$('#threshold-result-notfound').hide();
-
-$('#calc').click(function() {
-    if (damage_form.checkValidity() === false) {
-        damage_form.classList.add('was-validated');
-        return;
-    }
-
-    damage_form.classList.remove('was-validated');
-
-    if (attack_count == 0) {
-        $('#no-attacks-feedback').show();
-    }
-
-    var threshold = 0;
-    if (use_threshold) {
-        threshold = parseInt($('#damage-amount').val());
-    }
-
-    var probs = [];
-    var highest_attack_idx = 0;
+    var found_greater = false;
     for (var i = 0; i < attack_count; i++) {
-        var dmg = attacks[i]['damage'];
-        var total_slots = attacks[i]['slots'];
-        var slot_prob = attacks[i]['percent'];
-
-        for (var slot = 0; slot <= total_slots; slot++) {
-            console.log(slot_prob / 100);
-            var bin_prob = bin(total_slots, slot_prob / 100, slot);
-            console.log(bin_prob);
-            var slot_dmg = dmg * slot / total_slots * bin_prob;
-            console.log(slot_dmg);
-            attacks[i]['avg'] += slot_dmg;
-
-            if (slot_dmg >= threshold) {
-                attacks[i]['pass_percent'] += bin_prob;
-            }
-        }
-
-        if (attacks[i]['avg'] > attacks[highest_attack_idx]['avg']) {
-            highest_attack_idx = i;
+        if (attacks[i]['avg_damage'] > attacks[attack_count]['avg_damage']) {
+            found_greater = true;
         }
     }
 
-    $('#highest-damage').text(attacks[highest_attack_idx]['avg']);
-    $('#highest-damage-attack').text(attacks[highest_attack_idx]['name']);
-    $('#highest-result').show();
+    attack_count++;
+    if (!found_greater) {
+        $('#attacks *').removeClass('highest-damage');
+        $('#attacks tr:nth-child(' + attack_count + ') td').addClass('highest-damage');
+    }
 });
+
 </script>
 {% endblock scripts %}
 
@@ -190,7 +173,7 @@ $('#calc').click(function() {
                         <div class="invalid-feedback">Please provide a valid slot count</div>
                     </div>
                     <div class="form-group">
-                        <label for="percent">Likelihood</label>
+                        <label for="percent">Slot Likelihood</label>
                         <input type="number" 
                                class="form-control" 
                                id="percent" 
@@ -205,48 +188,23 @@ $('#calc').click(function() {
     </div>
     <div class="card">
         <div class="card-body">
-            <h3 class="card-title">Add Desired Damage</h3>
+            <h3 class="card-title">Damage Threshold</h3>
             <h6 class="card-subtitle mb-3 text-muted">
-            Add either a minimum desired damage amount or maximum damage
+            Set a damage minimum to see which attack is more likely to reach and/or exceed the threshold
             </h6>
             <hr>
             <div class="card-block">
-                <form id="damage-form" novalidate>
-                    <fieldset class="form-group">
-                        <div>
-                            <div class="form-check">
-                                <label class="form-check-label">
-                                    <input class="form-check-input" 
-                                           type="radio" 
-                                           id="max-select" 
-                                           name="damage-type"
-                                           value="max"
-                                           checked>
-                                    Maximum possible damage
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <label class="form-check-label">
-                                    <input class="form-check-input"
-                                           type="radio" 
-                                           id="amount-select" 
-                                           name="damage-type" 
-                                           value="amount">
-                                    Specific amount of damage
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="damage-amount" 
-                                       placeholder="Amount"
-                                       disabled>
-                                <div class="invalid-feedback">
-                                Please provide a valid damage amount
-                                </div>
-                            </div>
-                        </div>
-                    </fieldset>
+                 <form id="threshold-form" novalidate>
+                    <div class="form-group">
+                        <label for="damage-threshold">Damage Threshold</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="damage-threshold" 
+                               placeholder="Threshold" 
+                               required>
+                        <div class="invalid-feedback">Please provide a valid damage threshold</div>
+                    </div>
+                    <button id="set-threshold" type="button" class="btn btn-primary btn-sm">Set Threshold</button>
                 </form>
             </div>
         </div>
@@ -268,6 +226,7 @@ $('#calc').click(function() {
                             <th>Std Dev Damage</th>
                             <th>Total Slots</th>
                             <th>Slot Probability</th>
+                            <th>Threshold Probability</th>
                         </tr>
                     </thead>
                     <tbody id="attacks"></tbody>
@@ -275,44 +234,6 @@ $('#calc').click(function() {
                 <div id="no-attacks-feedback" class="invalid-feedback">
                 Please provide at least one attack method
                 </div>
-            </div>
-        </div>
-    </div>
-    <div class="card">
-        <div class="card-body">
-            <h3 class="card-title">Probabilities</h3>
-            <h6 class="card-subtitle mb-3 text-muted">
-            Calculated outcome probabilities and averages
-            <h6>
-            <hr>
-            <div class="card-block">
-                <button id="calc" 
-                        type="button" 
-                        class="btn btn-primary btn-sm">
-                Calculate
-                </button>
-            </div>
-            <div>
-                <p id="highest-result" class="mt-3">
-                    Highest average damage of 
-                    <strong id="highest-damage"></strong>
-                    can be achieved using the 
-                    <strong id="highest-damage-attack"></strong> attack
-                </p>
-                <p id="threshold-result-found" class="mt-3">
-                    A minimum damage threshold of 
-                    <strong id="threshold-minimum"></strong>
-                    can be achieved using the 
-                    <strong id="threshold-attack"></strong>
-                    attack (
-                    <strong id="threshold-probability"></strong>
-                    )
-                </p>
-                <p id="threshold-result-notfound" class="mt-3">
-                    The minimum damage threshold of
-                    <strong id="threshold-minimum"></strong>
-                    could not be reached.
-                </p>
             </div>
         </div>
     </div>
