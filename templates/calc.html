@@ -52,7 +52,9 @@ function setThreshold(i) {
 }
 
 var threshold_form = document.getElementById('threshold-form');
-$('#set-threshold').click(function() {
+$('#threshold-form').on('submit', function(e) {
+    e.preventDefault();
+
     if (threshold_form.checkValidity() === false) {
         threshold_form.classList.add('was-validated');
         return;
@@ -69,7 +71,9 @@ $('#set-threshold').click(function() {
 });
 
 var attack_form = document.getElementById('attack-form');
-$('#add-attack').click(function() {
+$('#attack-form').on('submit', function(e) {
+    e.preventDefault();
+
     if (attack_form.checkValidity() === false) {
         attack_form.classList.add('was-validated');
         return;
@@ -186,8 +190,8 @@ $('#add-attack').click(function() {
                                required>
                         <div class="invalid-feedback">Please provide a valid percent value</div>
                     </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Add Attack</button>
                 </form>
-                <button id="add-attack" type="button" class="btn btn-primary btn-sm">Add Attack</button>
             </div>
         </div>
     </div>
@@ -209,8 +213,8 @@ $('#add-attack').click(function() {
                                required>
                         <div class="invalid-feedback">Please provide a valid damage threshold</div>
                     </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Set Threshold</button>
                 </form>
-                <button id="set-threshold" type="button" class="btn btn-primary btn-sm">Set Threshold</button>
             </div>
         </div>
     </div>
