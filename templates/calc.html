@@ -43,7 +43,6 @@ function setThreshold(i) {
         var bin_prob = bin(total_slots, slot_percent / 100, slot);
         var slot_dmg = total_damage * slot / total_slots;
 
-        console.log(slot_dmg);
         if (slot_dmg >= threshold) {
             attacks[i]['threshold_percent'] += bin_prob;
         }
@@ -64,15 +63,13 @@ $('#set-threshold').click(function() {
 
     for (var i = 0; i < attack_count; i++) {
         setThreshold(i);
-
-        $('#attacks tr:nth-child(' + (i + 1) + ') td:last-child').text(attacks[i]['threshold_percent'].toFixed(2));
+        console.log(i);
+        $('#attacks div:nth-child(' + (i + 1) + ') dd:last-child').text(attacks[i]['threshold_percent'].toFixed(2));
     }
 });
 
 var attack_form = document.getElementById('attack-form');
 $('#add-attack').click(function() {
-    $('#no-attacks-feedback').hide();
-
     if (attack_form.checkValidity() === false) {
         attack_form.classList.add('was-validated');
         return;
@@ -105,14 +102,22 @@ $('#add-attack').click(function() {
     var bin_stddev = Math.sqrt(total_slots * slot_percent / 100 * (1 - slot_percent / 100));
     attacks[attack_count]['stddev_damage'] = total_damage * bin_stddev / total_slots;
 
-    var attack = "<tr><td>" + name + 
-                 "</td><td>" + total_damage + 
-                 "</td><td>" + attacks[attack_count]['avg_damage'].toFixed(2) +
-                 "</td><td>" + attacks[attack_count]['stddev_damage'].toFixed(2) +
-                 "</td><td>" + total_slots + 
-                 "</td><td>" + slot_percent +
-                 "%</td><td>" + attacks[attack_count]['threshold_percent'].toFixed(2) + 
-                 "</td></tr>";
+    var attack = '<div><h4>' + name + '</h4>' +
+                 '<dl class="row">' +
+                 '<dt class="col-8 col-lg-4">Total Damage</dt>' +
+                 '<dd class="col-4 col-lg-8">' + total_damage + '</dd>' +
+                 '<dt class="col-8 col-lg-4">Average Damage</dt>' +
+                 '<dd class="col-4 col-lg-8">' + attacks[attack_count]['avg_damage'].toFixed(2) + '</dd>' +
+                 '<dt class="col-8 col-lg-4">Std Dev Damage</dt>' +
+                 '<dd class="col-4 col-lg-8">' + attacks[attack_count]['stddev_damage'].toFixed(2) + '</dd>' +
+                 '<dt class="col-8 col-lg-4">Number of Slots</dt>' +
+                 '<dd class="col-4 col-lg-8">' + total_slots + '</dd>' +
+                 '<dt class="col-8 col-lg-4">Slot Percent</dt>' +
+                 '<dd class="col-4 col-lg-8">' + slot_percent + '</dd>' +
+                 '<dt class="col-8 col-lg-4">Threshold Percent</dt>' +
+                 '<dd class="col-4 col-lg-8">' + attacks[attack_count]['threshold_percent'].toFixed(2) + '</dd>' +
+                 '</dl><hr></div>';
+
     $('#attacks').append(attack);
 
     var found_greater = false;
@@ -216,25 +221,7 @@ $('#add-attack').click(function() {
             Attacks that are available
             </h6>
             <hr>
-            <div class="card-block">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Max Damage</th>
-                            <th>Average Damage</th>
-                            <th>Std Dev Damage</th>
-                            <th>Total Slots</th>
-                            <th>Slot Probability</th>
-                            <th>Threshold Probability</th>
-                        </tr>
-                    </thead>
-                    <tbody id="attacks"></tbody>
-                </table>
-                <div id="no-attacks-feedback" class="invalid-feedback">
-                Please provide at least one attack method
-                </div>
-            </div>
+            <div id="attacks" class="card-block"></div>
         </div>
     </div>
 </div>
