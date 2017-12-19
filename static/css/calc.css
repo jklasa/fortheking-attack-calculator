@@ -1,0 +1,19 @@
+table {
+    width: 100%;
+}
+
+table td {
+    padding: 5px 0;
+}
+
+.title {
+    margin-top: 20px;
+}
+
+.card {
+    margin-bottom: 15px;
+}
+
+dl {
+    max-width: 30em;
+}

@@ -1,0 +1,320 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}
+ForTheKing Calculator
+{% endblock title %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/calc.css') }}">
+{% endblock styles %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+var attack_count = 0;
+var use_threshold = false;
+var attacks = [];
+
+var attack_form = document.getElementById('attack-form');
+
+$('#max-select').click(function() {
+    $('#damage-amount').prop('disabled', true).prop('required', false);
+    use_threshold = false;
+});
+
+$('#amount-select').click(function() {
+    $('#damage-amount').prop('disabled', false).prop('required', true);
+    use_threshold = true;
+});
+
+$('#add-attack').click(function() {
+    $('#no-attacks-feedback').hide();
+
+    if (attack_form.checkValidity() === false) {
+        attack_form.classList.add('was-validated');
+        return;
+    }
+       
+    attack_form.classList.remove('was-validated');
+ 
+    var name = $('#name').val();
+    var total_damage = parseInt($('#damage').val());
+    var total_slots = parseInt($('#slots').val());
+    var slot_percent = parseInt($('#percent').val());
+
+    $('#name').val('');
+    $('#damage').val('');
+    $('#slots').val('');
+    $('#percent').val('');
+
+    attacks.push({
+        "name": name,
+        "damage": total_damage,
+        "slots": total_slots,
+        "percent": slot_percent,
+        "pass_percent": 0,
+        "avg": damage * percent
+    });
+
+    for (var slot = 0; slot <= total_slots; slot++) {
+        var bin_prob = bin(total_slots, slot_percent / 100, slot);
+        var slot_dmg = total_damage * slot / total_slots * bin_prob;
+    }
+
+    var avg_damage = total_damage * slot_percent / 100;
+    var bin_stddev = Math.sqrt(total_slots * slot_percent / 100 * (1 - slot_percent / 100));
+    var stddev_damage = total_damage * bin_stddev / total_slots;
+
+    var attack = "<tr><td>" + name + 
+                 "</td><td>" + total_damage + 
+                 "</td><td>" + avg_damage +
+                 "</td><td>" + stddev_damage +
+                 "</td><td>" + total_slots + 
+                 "</td><td>" + slot_percent + 
+                 "%</td></tr>";
+    $('#attacks').append(attack);
+
+    attack_count++;
+});
+
+function factorial(num) {
+    if (num === 0 || num === 1)
+        return 1;
+    for (var i = num - 1; i >= 1; i--) {
+        num *= i;
+    }
+    return num;
+}
+
+function bin(n, p, k) {
+    var comb = factorial(factorial(n) / factorial(k) / factorial(n - k));
+    var p_success = Math.pow(p, k);
+    var p_failure = Math.pow(1 - p, n - k);
+
+    return comb * p_success * p_failure;
+}
+
+var damage_form = document.getElementById('damage-form');
+$('#highest-result').hide();
+$('#threshold-result-found').hide();
+$('#threshold-result-notfound').hide();
+
+$('#calc').click(function() {
+    if (damage_form.checkValidity() === false) {
+        damage_form.classList.add('was-validated');
+        return;
+    }
+
+    damage_form.classList.remove('was-validated');
+
+    if (attack_count == 0) {
+        $('#no-attacks-feedback').show();
+    }
+
+    var threshold = 0;
+    if (use_threshold) {
+        threshold = parseInt($('#damage-amount').val());
+    }
+
+    var probs = [];
+    var highest_attack_idx = 0;
+    for (var i = 0; i < attack_count; i++) {
+        var dmg = attacks[i]['damage'];
+        var total_slots = attacks[i]['slots'];
+        var slot_prob = attacks[i]['percent'];
+
+        for (var slot = 0; slot <= total_slots; slot++) {
+            console.log(slot_prob / 100);
+            var bin_prob = bin(total_slots, slot_prob / 100, slot);
+            console.log(bin_prob);
+            var slot_dmg = dmg * slot / total_slots * bin_prob;
+            console.log(slot_dmg);
+            attacks[i]['avg'] += slot_dmg;
+
+            if (slot_dmg >= threshold) {
+                attacks[i]['pass_percent'] += bin_prob;
+            }
+        }
+
+        if (attacks[i]['avg'] > attacks[highest_attack_idx]['avg']) {
+            highest_attack_idx = i;
+        }
+    }
+
+    $('#highest-damage').text(attacks[highest_attack_idx]['avg']);
+    $('#highest-damage-attack').text(attacks[highest_attack_idx]['name']);
+    $('#highest-result').show();
+});
+</script>
+{% endblock scripts %}
+
+{% block content %}
+<div class="container">
+    <h1 class="title"><i>For The King</i> Probability Calculator</h1>
+    <hr>
+    <div class="card">
+        <div class="card-body">
+            <h3 class="card-title">Add Attack Method</h3>
+            <h6 class="card-subtitle mb-3 text-muted">
+            Add available attacks for your character and weapon
+            </h6>
+            <hr>
+            <div class="card-block">
+                <form id="attack-form" novalidate>
+                    <div class="form-group">
+                        <label for="name">Attack Name</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="name" 
+                               placeholder="Name" 
+                               required>
+                        <div class="invalid-feedback">Please provide a valid name</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="damage">Attack Damage</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="damage" 
+                               placeholder="Damage" 
+                               required>
+                        <div class="invalid-feedback">Please provide a valid damage value</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="slots">Number of Slots</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="slots" 
+                               placeholder="Slots" 
+                               required>
+                        <div class="invalid-feedback">Please provide a valid slot count</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="percent">Likelihood</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="percent" 
+                               placeholder="Percent" 
+                               required>
+                        <div class="invalid-feedback">Please provide a valid percent value</div>
+                    </div>
+                </form>
+                <button id="add-attack" type="button" class="btn btn-primary btn-sm">Add Attack</button>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <h3 class="card-title">Add Desired Damage</h3>
+            <h6 class="card-subtitle mb-3 text-muted">
+            Add either a minimum desired damage amount or maximum damage
+            </h6>
+            <hr>
+            <div class="card-block">
+                <form id="damage-form" novalidate>
+                    <fieldset class="form-group">
+                        <div>
+                            <div class="form-check">
+                                <label class="form-check-label">
+                                    <input class="form-check-input" 
+                                           type="radio" 
+                                           id="max-select" 
+                                           name="damage-type"
+                                           value="max"
+                                           checked>
+                                    Maximum possible damage
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <label class="form-check-label">
+                                    <input class="form-check-input"
+                                           type="radio" 
+                                           id="amount-select" 
+                                           name="damage-type" 
+                                           value="amount">
+                                    Specific amount of damage
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="damage-amount" 
+                                       placeholder="Amount"
+                                       disabled>
+                                <div class="invalid-feedback">
+                                Please provide a valid damage amount
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <h3 class="card-title">Attacks</h3>
+            <h6 class="card-subtitle mb-3 text-muted">
+            Attacks that are available
+            </h6>
+            <hr>
+            <div class="card-block">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Max Damage</th>
+                            <th>Average Damage</th>
+                            <th>Std Dev Damage</th>
+                            <th>Total Slots</th>
+                            <th>Slot Probability</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attacks"></tbody>
+                </table>
+                <div id="no-attacks-feedback" class="invalid-feedback">
+                Please provide at least one attack method
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <h3 class="card-title">Probabilities</h3>
+            <h6 class="card-subtitle mb-3 text-muted">
+            Calculated outcome probabilities and averages
+            <h6>
+            <hr>
+            <div class="card-block">
+                <button id="calc" 
+                        type="button" 
+                        class="btn btn-primary btn-sm">
+                Calculate
+                </button>
+            </div>
+            <div>
+                <p id="highest-result" class="mt-3">
+                    Highest average damage of 
+                    <strong id="highest-damage"></strong>
+                    can be achieved using the 
+                    <strong id="highest-damage-attack"></strong> attack
+                </p>
+                <p id="threshold-result-found" class="mt-3">
+                    A minimum damage threshold of 
+                    <strong id="threshold-minimum"></strong>
+                    can be achieved using the 
+                    <strong id="threshold-attack"></strong>
+                    attack (
+                    <strong id="threshold-probability"></strong>
+                    )
+                </p>
+                <p id="threshold-result-notfound" class="mt-3">
+                    The minimum damage threshold of
+                    <strong id="threshold-minimum"></strong>
+                    could not be reached.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
